@@ -1,0 +1,5 @@
+#Internal Project Filters
+results/*
+Reference_scripts/*
+venv/*
+.idea/*
