@@ -3,7 +3,7 @@
 We developed gene expression and DNA methylation based Alzheimer's disease prediction algorithm using deep neural network.
 
 ## Website
-[https://github.com/ChihyunPark/ADprediction](https://github.com/ChihyunPark/ADprediction)
+https://github.com/ChihyunPark/DNN_for_ADprediction
 
 ## Overall algorithm
 
