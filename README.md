@@ -1,4 +1,4 @@
-# Prediction of Alzheimer¡¯s Disease Based on Deep Neural Network by Integrating Gene Expression and DNA Methylation Dataset
+# Prediction of Alzheimer's Disease Based on Deep Neural Network by Integrating Gene Expression and DNA Methylation Dataset
 
 We developed gene expression and DNA methylation based Alzheimer's disease prediction algorithm using deep neural network.
 
