@@ -674,7 +674,9 @@ def doDNN_8(xy_train, xy_test, outfilename, total_epoch, determine_variable_reus
 	fout.write("dr_rate: " + drop_out_rate.__str__() + "\n")
 	##############################################
 
-	accuracy_list = []
+	test_accuracy_list = []
+	test_loss_list = []
+	train_accuracy_list = []
 
 	# Launch the graph
 	sess = tf.Session()
@@ -683,6 +685,7 @@ def doDNN_8(xy_train, xy_test, outfilename, total_epoch, determine_variable_reus
 	early_stop_epoch_test_acc_map = {}
 	early_stop_epoch_test_loss_map = {}
 	early_stop_epoch_test_auroc_map = {}
+	stop_epoch = 0
 
 	for epoch in range(training_epochs):
 		sess.run(train, feed_dict={X: x_train_data, Y: y_train_data, dropout_rate: drop_out_rate})
@@ -699,27 +702,34 @@ def doDNN_8(xy_train, xy_test, outfilename, total_epoch, determine_variable_reus
 
 		fout.write("epoch:\t" + str(epoch) + "\t" + "train_loss:\t" + str(loss) + "\t" + "train_acc:\t" + str(acc) + "\t" + "test_acc:\t" + str(test_acc) + "\n")
 
-		accuracy_list.append(test_acc)
-		last_n_elements = 5
-		if epoch > 300:
+		test_accuracy_list.append(test_acc)
+		train_accuracy_list.append(acc)
+		test_loss_list.append(test_loss)
+
+		last_n_elements = 10
+		if epoch > 100:
 			# print(accuracy_list[int(round(len(accuracy_list) / 5)):])
 			#test_acc_mean = np.mean(accuracy_list[int(round(len(accuracy_list) / 3)):]
-			test_acc_mean = np.mean(accuracy_list[-last_n_elements:])
+			test_acc_mean = np.mean(test_accuracy_list[-last_n_elements:])
+			train_acc_mean = np.mean(train_accuracy_list[-last_n_elements:])
 
-			if abs(test_acc - test_acc_mean) <= 0.001:
-				print("early stopping test_acc: " + str(test_acc))
-				print("early stopping @ " + str(epoch))
+			if (test_acc - test_acc_mean) <= 0.001 and (acc - train_acc_mean) >= 0.01:
+				es_test_acc = test_accuracy_list[-last_n_elements]
+				es_epoch = epoch - last_n_elements
+				es_test_loss = test_loss_list[-last_n_elements]
+
+				print("early stopping test_acc: " + str(es_test_acc))
+				print("early stopping @ " + str(es_epoch))
 
 				pred = sess.run(prediction, feed_dict={X: x_test_data, dropout_rate: 1.0})
 				pred_arr = np.asarray(pred)
 				test_auroc = roc_auc_score(y_test_data, pred_arr)
 
-				early_stop_epoch_test_acc_map[epoch] = test_acc
-				early_stop_epoch_test_loss_map[epoch] = test_loss
-				early_stop_epoch_test_auroc_map[epoch] = test_auroc
-				#early_stop_test_acc_list.append(test_acc)
-				#early_stop_epoch_list.append(epoch)
-				#break
+				early_stop_epoch_test_acc_map[es_epoch] = es_test_acc
+				early_stop_epoch_test_loss_map[es_epoch] = es_test_loss
+				early_stop_epoch_test_auroc_map[es_epoch] = test_auroc
+				stop_epoch = es_epoch
+				break
 
 	print("@@ Optimization Finished: sess.run with test data @@")
 	pred = sess.run(prediction, feed_dict={X: x_test_data, dropout_rate: 1.0})
@@ -761,36 +771,53 @@ def doDNN_8(xy_train, xy_test, outfilename, total_epoch, determine_variable_reus
 	test_accuracy_by_tptnfpfn = float((tp_cnt + tn_cnt)/(tp_cnt + fp_cnt + fn_cnt + tn_cnt))
 	print("test_accuracy_by_tptnfpfn: " + str(test_accuracy_by_tptnfpfn))
 
-	eStop_best_epoch = max(early_stop_epoch_test_acc_map.items(), key=operator.itemgetter(1))[0]
-	eStop_best_acc = early_stop_epoch_test_acc_map[eStop_best_epoch]
-	eStop_best_lost = early_stop_epoch_test_loss_map[eStop_best_epoch]
-	eStop_best_auroc = early_stop_epoch_test_auroc_map[eStop_best_epoch]
+	if stop_epoch != 0:
+		eStop_acc = early_stop_epoch_test_acc_map[stop_epoch]
+		eStop_loss = early_stop_epoch_test_loss_map[stop_epoch]
+		eStop_auroc = early_stop_epoch_test_auroc_map[stop_epoch]
 
-	highest_test_acc = max(accuracy_list)
-	highest_test_acc_idx = accuracy_list.index(highest_test_acc)
+		print("eStop_best_epoch: " + str(stop_epoch))
+		print("eStop_best_acc: " + str(eStop_acc))
 
-	print("eStop_best_epoch: " + str(eStop_best_epoch))
-	print("eStop_best_acc: " + str(eStop_best_acc))
+		print("@@ 1 Optimization Finished with accuracy.eval @@")
+		test_loss, test_acc = sess.run([cost, accuracy], feed_dict={X: x_test_data, Y: y_test_data, dropout_rate: 1.0})
 
-	print("@@ 1 Optimization Finished with accuracy.eval @@")
-	test_loss, test_acc = sess.run([cost, accuracy], feed_dict={X: x_test_data, Y: y_test_data, dropout_rate: 1.0})
+		print("Test Loss:\t" + str(test_loss) + "\n" +
+			  "Test Acc:\t" + str(test_acc) + "\n" +
+			  "Early Stop Epoch:\t" + str(stop_epoch) + "\n" +
+			  "Early Stop Test loss:\t" + str(eStop_loss) + "\n" +
+			  "Early Stop Test Acc:\t" + str(eStop_acc) + "\n" +
+			  "Early Stop Test AUROC:\t" + str(eStop_auroc) + "\n")
+		fout.write("Test Loss:\t" + str(test_loss) + "\n" +
+				   "Test Acc:\t" + str(test_acc) + "\n" +
+				   "Early Stop Epoch:\t" + str(stop_epoch) + "\n" +
+				   "Early Stop Test loss:\t" + str(eStop_loss) + "\n" +
+				   "Early Stop Test Acc:\t" + str(eStop_acc) + "\n" +
+				   "Early Stop Test AUROC:\t" + str(eStop_auroc) + "\n")
 
-	print("Test Loss:\t" + str(test_loss) + "\n" +
-		  "Test Acc:\t" + str(test_acc) + "\n" +
-		  "Best Test Acc in building model:\t" + str(highest_test_acc) + "\t" + "epoch:\t" + str(highest_test_acc_idx) + "\n" +
-		  "Early Stop Epoch:\t" + str(eStop_best_epoch) + "\n" +
-		  "Early Stop Test loss:\t" + str(eStop_best_lost) + "\n" +
-		  "Early Stop Test Acc:\t" + str(eStop_best_acc) + "\n" +
-		  "Early Stop Test AUROC:\t" + str(eStop_best_auroc) + "\n")
-	fout.write("Test Loss:\t" + str(test_loss) + "\n" +
-			   "Test Acc:\t" + str(test_acc) + "\n" +
-			   "Best Test Acc in building model:\t" + str(highest_test_acc) + "\t" + "epoch:\t" + str(highest_test_acc_idx) + "\n" +
-			   "Early Stop Epoch:\t" + str(eStop_best_epoch) + "\n" +
-			   "Early Stop Test loss:\t" + str(eStop_best_lost) + "\n" +
-			   "Early Stop Test Acc:\t" + str(eStop_best_acc) + "\n" +
-			   "Early Stop Test AUROC:\t" + str(eStop_best_auroc) + "\n")
-	#print("Test Loss: {:.3f}\tTest Acc: {:.3%}\tEarly Stop Test Acc: {:.3%}\tEarly Stop Epoch: {:.1%}\tEarly Stop Test loss: {:.3%}".format(loss, acc, float(eStop_best_acc), float(eStop_best_epoch), float(eStop_best_lost)))
-	#fout.write("Test Loss: {:.3f}\tTest Acc: {:.3%}\tEarly Stop Test Acc: {:.3%}\tEarly Stop Epoch: {:.1%}\tEarly Stop Test loss: {:.3%}".format(loss, acc, float(eStop_best_acc), float(eStop_best_epoch), float(eStop_best_lost)) + '\n')
+	else:
+		eStop_acc = test_accuracy_list[-1]
+		eStop_loss = test_loss_list[-1]
+
+		pred = sess.run(prediction, feed_dict={X: x_test_data, dropout_rate: 1.0})
+		pred_arr = np.asarray(pred)
+		eStop_auroc = roc_auc_score(y_test_data, pred_arr)
+
+		print("@@ 1 Optimization Finished with accuracy.eval @@")
+		test_loss, test_acc = sess.run([cost, accuracy], feed_dict={X: x_test_data, Y: y_test_data, dropout_rate: 1.0})
+		print("Test Loss:\t" + str(test_loss) + "\n" +
+			  "Test Acc:\t" + str(test_acc) + "\n" +
+			  "Early Stop Epoch:\t" + str(stop_epoch) + "\n" +
+			  "Early Stop Test loss:\t" + str(eStop_loss) + "\n" +
+			  "Early Stop Test Acc:\t" + str(eStop_acc) + "\n" +
+			  "Early Stop Test AUROC:\t" + str(eStop_auroc) + "\n")
+		fout.write("Test Loss:\t" + str(test_loss) + "\n" +
+				   "Test Acc:\t" + str(test_acc) + "\n" +
+				   "Early Stop Epoch:\t" + str(stop_epoch) + "\n" +
+				   "Early Stop Test loss:\t" + str(eStop_loss) + "\n" +
+				   "Early Stop Test Acc:\t" + str(eStop_acc) + "\n" +
+				   "Early Stop Test AUROC:\t" + str(eStop_auroc) + "\n")
+
 
 	pred_arr = np.asarray(pred)
 	print("@@ 2 ROC, AUC")
