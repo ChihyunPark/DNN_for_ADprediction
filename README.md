@@ -1,12 +1,12 @@
-# Prediction of Alzheimer¡¯s Disease Based on Deep Neural Network by Integrating Gene Expression and DNA Methylation Dataset
+# Prediction of Alzheimer's Disease Based on Deep Neural Network by Integrating Gene Expression and DNA Methylation Dataset
 
 We developed gene expression and DNA methylation based Alzheimer's disease prediction algorithm using deep neural network.
 
 ## Website
-[https://github.com/ChihyunPark/ADprediction](https://github.com/ChihyunPark/ADprediction)
+https://github.com/ChihyunPark/DNN_for_ADprediction
 
 ## Overall algorithm
-
+![github_f1](https://user-images.githubusercontent.com/34843393/61431751-8801f280-a969-11e9-87b3-aa3d2b569abc.PNG)
 
 ## Requirements
 Python 3.5 
@@ -17,11 +17,8 @@ Python 3.5
 
 ## Input and Output
 ### input files
-- gene expression: allforDNN_ge.txt
-- DNA methylation: allforDNN_me.txt
-- DEG list: DEG_list.tsv
-- DMP list: DMP_list.tsv
-- platform of methylation data: GPL13534-11288.txt
+- gene expression: allforDNN_ge_sample.txt
+- DNA methylation: allforDNN_me_sample.txt
 
 ## Codes
 1. data preprocessing
